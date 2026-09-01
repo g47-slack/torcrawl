@@ -1,0 +1,12 @@
+# Scam list — one .onion address per line. Lowercase.
+# Lines starting with # are comments. Blank lines ignored.
+# Built-in baseline is also active (see torcrawl/scam.py).
+
+# Old hydra mirrors
+hydraruzxpnew4af.onion
+hydra2exwrdy2vad.onion
+
+# Known law-enforcement seizure placeholders
+abacusjrx4dlcsp6.onion
+darkmarketlinkxx.onion
+unionsellxx.onion

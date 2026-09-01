@@ -1,0 +1,18 @@
+# Default seed indexes for TORCrawl.
+# One URL per line. Comments (#) and blank lines are ignored.
+# Mix of clearnet Tor search engines and .onion indexes.
+
+# Ahmia.fi — clearnet Tor search (clearnet over Tor, safe to add to a starter seed)
+https://ahmia.fi/
+
+# OnionLand — mature search engine
+https://onionland.io/
+
+# Torch — long-running .onion search (if reachable)
+http://torchdeedp3i2jigwdmhkfmuuqicwvml5dkr3ecwxgtrjlhjn27tllid.onion/
+
+# dark.fail — uptime-tracked directory of popular .onions
+https://dark.fail/
+
+# Tor.taxi — community index
+https://tor.taxi/

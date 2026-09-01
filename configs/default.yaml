@@ -1,0 +1,22 @@
+# YAML config schema. Anything missing falls back to the dataclass defaults.
+# Override anything here; the dataclass coercion in config.py is
+# tolerant of missing keys.
+
+tor:
+  socks_host: "127.0.0.1"
+  socks_port: 9052
+  control_host: "127.0.0.1"
+  control_port: 9051
+  control_password: "torcrawlcontrol"   # plaintext, see docs/TROUBLESHOOTING.md
+
+net:
+  concurrency: 12
+  probe_timeout: 18.0
+  inter_index_delay: 3.0
+  newnym_interval: 20
+  dead_rescan_days: 30
+
+seeds: []              # populated at runtime from --seeds file
+scam_list_path: "seeds/scam_list.txt"
+db_path: "torcrawl_state.db"
+out_dir: "./out"

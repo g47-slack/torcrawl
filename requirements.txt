@@ -1,0 +1,6 @@
+aiohttp>=3.9
+aiohttp_socks>=0.10
+faker>=25.0
+PyYAML>=6.0
+rich>=13.0
+stem>=1.8
