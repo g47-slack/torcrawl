@@ -154,61 +154,55 @@ def build_argparser() -> argparse.ArgumentParser:
 # Probe-clearnet mode: exercise every non-Tor code path.
 # ---------------------------------------------------------------------------
 
-async def run_probe_clearnet(cfg: Config, args: argparse.Namespace) -> int:
+async def run_probe_clearnet(cfg, args):
     """No Tor needed. Validates aiohttp, extract, scam, ua, state, tui, async pool."""
+    from rich.console import Console
     console = Console()
     console.print("[bold cyan]TORCrawl probe-clearnet mode[/] — no Tor required")
+    from .banner import print_banner
     print_banner()
+
+    from pathlib import Path
+    from .state import State
+    from .scam import ScamFilter
+    from .ua import UserAgentFactory
+    from .net import build_session
+    from .extract import extract_onions_from_html
+    from aiohttp import ClientTimeout
 
     state = State(args.db)
     state.init()
     scam = ScamFilter.from_files(args.scam_list)
     uas = UserAgentFactory()
-    tor = TorController(
-        control_port=cfg.tor.control_port,
-        password=cfg.tor.control_password,
-    )
-    tor_status = tor.ping()
-    console.print(f"[dim]Tor control socket: {tor_status}[/]")
+    console.print(f"[dim]Tor control skipped (probe-clearnet mode).[/]")
 
-    # Targets: a small mixed set so the extractor is exercised on
-    # well-formed HTML, attribute forms, and noscript blocks.
     probe_targets = [
         "https://example.com/",
         "https://www.iana.org/",
         "https://en.wikipedia.org/wiki/Tor_(anonymity_network)",
     ]
-    found_onions: set[str] = set()
-    statuses: list[tuple[str, int, float]] = []
-    async with build_session(
-        proxy=None,  # clearnet, not through Tor
-        user_agent=uas.next(),
-        trust_env=False,
-    ) as session:
-        from aiohttp import ClientTimeout
-        sem = asyncio.Semaphore(cfg.net.concurrency)
-        async def one(url: str) -> None:
-            async with sem:
-                t0 = time.monotonic()
-                try:
-                    async with session.get(url, timeout=ClientTimeout(total=20)) as r:
-                        body = await r.text(errors="replace")
-                        rt = (time.monotonic() - t0) * 1000.0
-                        onions = extract_onions_from_html(body, source=url)
-                        found_onions.update(onions)
-                        statuses.append((url, r.status, rt))
-                except Exception as exc:
-                    statuses.append((url, 0, (time.monotonic() - t0) * 1000.0))
-                    logger.debug("probe %s failed: %s", url, exc)
+    found = set()
+    statuses = []
+    async with build_session(proxy=None, user_agent=uas.next(), trust_env=False) as sess:
+        import time
+        async def one(url):
+            t0 = time.monotonic()
+            try:
+                async with sess.get(url, timeout=ClientTimeout(total=20)) as r:
+                    body = await r.text(errors="replace")
+                    onions = extract_onions_from_html(body, source=url)
+                    found.update(onions)
+                    statuses.append((url, r.status, (time.monotonic() - t0) * 1000.0))
+            except Exception as exc:
+                statuses.append((url, 0, (time.monotonic() - t0) * 1000.0))
+        import asyncio
         await asyncio.gather(*(one(u) for u in probe_targets))
 
-    # Persist whatever we found (zero is fine, this is a probe not a harvest).
-    if found_onions:
-        filtered = scam.filter(found_onions)
+    if found:
+        filtered = scam.filter(found)
         for o in filtered:
-            state.upsert_unknown(o, source=found_onions.__class__.__name__)
-        console.print(f"[green]extracted {len(found_onions)} onions[/] "
-                      f"(scam-filtered -> {len(filtered)})")
+            state.upsert_unknown(o, source="probe-clearnet")
+        console.print(f"[green]extracted {len(found)} onions[/] (scam-filtered -> {len(filtered)})")
     else:
         console.print("[yellow]no onions extracted (expected on clearnet)[/]")
 
@@ -218,10 +212,6 @@ async def run_probe_clearnet(cfg: Config, args: argparse.Namespace) -> int:
     state.close()
     return 0
 
-
-# ---------------------------------------------------------------------------
-# Real crawl mode.
-# ---------------------------------------------------------------------------
 
 async def run_crawl(cfg: Config, args: argparse.Namespace) -> int:
     console = Console()
